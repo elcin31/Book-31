@@ -1,0 +1,2 @@
+# Optional: only required to regenerate PNG artwork from the bundled SVG design.
+CairoSVG==2.9.1

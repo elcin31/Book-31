@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+*.jks
+*.keystore
+.env*
+!.env.example
+artifacts/
+*.log
+.android-sdk/
+.toolchains/
+.keys/
+.gradle/
