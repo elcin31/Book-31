@@ -41,7 +41,7 @@ def find(label, bottom=False):
     nodes.sort(key=lambda n: n.get('class') != 'android.widget.EditText')
     if bottom:
         nodes.sort(key=lambda n: center(n)[1], reverse=True)
-    return next((n for n in nodes if n.get('bounds') and center(n) != (0, 0)), None)
+    return next((n for n in nodes if n.get('bounds') and len(re.findall(r'\d+', n.get('bounds', '')))==4 and int(re.findall(r'\d+', n.get('bounds'))[2])>int(re.findall(r'\d+', n.get('bounds'))[0]) and int(re.findall(r'\d+', n.get('bounds'))[3])>int(re.findall(r'\d+', n.get('bounds'))[1])), None)
 
 
 def tap(label, bottom=False, scroll=False):
@@ -63,7 +63,9 @@ def tap(label, bottom=False, scroll=False):
 def fill(label, value):
     tap(label)
     adb('shell', 'input', 'text', value)
-    adb('shell', 'input', 'keyevent', '4')
+    ime = adb('shell', 'dumpsys', 'input_method')
+    if 'mInputShown=true' in ime or 'mIsInputViewShown=true' in ime:
+        adb('shell', 'input', 'keyevent', '4')
     time.sleep(0.4)
 
 
@@ -82,6 +84,7 @@ def screenshot(name):
 
 try:
     adb('logcat', '-c')
+    adb('shell', 'settings', 'put', 'secure', 'show_ime_with_hard_keyboard', '1')
     adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
     time.sleep(8)
     assert adb('shell', 'pidof', PACKAGE).strip(), 'App process missing'

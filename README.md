@@ -62,6 +62,8 @@ artifacts/FOLIO-0.1-Android.zip
 
 `npm start` — разработка; `npx expo export --platform android` — проверка JS/assets Android без Gradle. `android/` генерируется, а его небольшие воспроизводимые изменения находятся в `plugins/withLocalRelease.js`.
 
+Для публикации уже проверенного локального ZIP используется отдельный [publish workflow](.github/workflows/publish-apk.yml): он сверяет SHA-256 APK и архива из ветки `folio-0.1-apk-artifact` и загружает тот же файл в GitHub Release. Это позволяет опубликовать оригинальную локально подписанную сборку, не раскрывая её ключ.
+
 ## Архитектура и данные
 
 - `src/types.ts`: доменная модель и маршруты.
@@ -87,7 +89,7 @@ node scripts/serve-preview.mjs
 node scripts/qa-browser.mjs
 ```
 
-Это локальная QA-версия с SQLite WASM, **не Android-эмулятор и не веб-продукт**. Expo SQLite в новых Chromium иногда требует на первом открытии нажать «Повторить» из-за короткого синхронного worker timeout; Android использует другой, нативный SQLite bridge. Достоверные результаты конкретной сборки приведены в [QA.md](QA.md).
+Это локальная QA-версия с SQLite WASM, **не Android-эмулятор и не веб-продукт**. Expo SQLite в новых Chromium иногда требует на первом открытии нажать «Повторить» из-за короткого синхронного worker timeout; Android использует другой, нативный SQLite bridge. При повторном открытии web bridge также может выдавать worker-ошибки `[object Object]`; скрипт фиксирует их как ошибки проверки. Для Android используйте нативную проверку в CI. Достоверные результаты конкретной сборки приведены в [QA.md](QA.md).
 
 ## Ограничения 0.1
 
