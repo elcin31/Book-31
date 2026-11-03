@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import zipfile
+import os
 root=Path(__file__).resolve().parent.parent
 folder=root/'artifacts'/'package'
 apk=folder/'FOLIO-0.1.apk'
@@ -36,6 +37,8 @@ CI без настроенных signing secrets создаёт новый кл�
 Запуск на Android-устройстве не проверен: в среде нет телефона или эмулятора.
 Этот APK предназначен для 64-битных Android-смартфонов.
 '''
+if 'x86_64' in os.environ.get('FOLIO_ARCHITECTURES',''):
+    readme=readme.replace('Архитектура: arm64-v8a (включая Xiaomi Redmi Note 12).','Архитектуры: arm64-v8a (включая Xiaomi Redmi Note 12) и x86_64 (эмулятор).').replace('Этот APK предназначен для 64-битных Android-смартфонов.','Этот APK предназначен для 64-битных Android-смартфонов и x86_64 эмулятора.')
 (folder/'README.txt').write_text(readme,encoding='utf-8')
 archive=root/'artifacts'/'FOLIO-0.1-Android.zip'
 with zipfile.ZipFile(archive,'w',compression=zipfile.ZIP_DEFLATED) as z:

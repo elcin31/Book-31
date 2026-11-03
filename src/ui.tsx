@@ -197,6 +197,7 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
         {label}
       </Text>
       <TextInput
+        accessibilityLabel={props.accessibilityLabel ?? label}
         placeholderTextColor={colors.muted}
         {...props}
         style={[

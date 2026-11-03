@@ -9,7 +9,7 @@ permissions:
 jobs:
   release-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,6 +40,7 @@ jobs:
           fi
       - name: Build standalone APK and ZIP
         env:
+          FOLIO_ARCHITECTURES: arm64-v8a,x86_64
           FOLIO_STORE_PASSWORD: ${{ secrets.FOLIO_STORE_PASSWORD }}
           FOLIO_KEY_PASSWORD: ${{ secrets.FOLIO_KEY_PASSWORD }}
           FOLIO_KEY_ALIAS: ${{ secrets.FOLIO_KEY_ALIAS }}
@@ -49,4 +50,25 @@ jobs:
           name: FOLIO-0.1-Android
           path: artifacts/FOLIO-0.1-Android.zip
           if-no-files-found: error
+          retention-days: 90
+      - name: Enable KVM for Android smoke test
+        run: sudo chmod 666 /dev/kvm
+      - name: Install and launch on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none -camera-front none
+          script: |
+            adb install -r artifacts/package/FOLIO-0.1.apk
+            python3 scripts/qa-android.py
+      - name: Upload native launch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FOLIO-Android-smoke-evidence
+          path: artifacts/android-smoke/
+          if-no-files-found: warn
           retention-days: 90
