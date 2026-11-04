@@ -15,6 +15,7 @@ import {
   confirm,
 } from "../ui";
 import { Settings } from "../types";
+import { version } from "../../package.json";
 
 export default function SettingsScreen() {
   const { settings, yearGoal, setYearGoal, setSettings, clearAll } = useStore();
@@ -256,7 +257,7 @@ export default function SettingsScreen() {
           FOLIO
         </Text>
         <Text style={{ fontSize: 12, color: colors.muted, marginTop: 7 }}>
-          Версия 0.1.0
+          Версия {version}
         </Text>
         <Text
           style={{

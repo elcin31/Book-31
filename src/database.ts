@@ -6,6 +6,7 @@ import type {
   Note,
   NoteInput,
   ReadingSession,
+  ReadingAttempt,
   Settings,
   Snapshot,
 } from "./types";
@@ -129,6 +130,14 @@ function updateAttempt(book: Book, next: BookInput) {
     "SELECT id,endedAt FROM ReadingAttempts WHERE bookId=? ORDER BY id DESC LIMIT 1",
     book.id,
   );
+  // Shelf changes must never erase a previously completed reading attempt.
+  // A new attempt begins only when reading actually resumes.
+  if (
+    latest?.endedAt &&
+    next.status !== "reading" &&
+    next.status !== "finished"
+  )
+    return;
   const endedAt =
     next.status === "finished"
       ? next.finishedAt
@@ -195,6 +204,9 @@ export const repository = {
         ? rawTimer
         : null;
     return {
+      attempts: database.getAllSync<ReadingAttempt>(
+        "SELECT * FROM ReadingAttempts ORDER BY startedAt DESC,id DESC",
+      ),
       books: database.getAllSync<Book>(
         "SELECT * FROM Books ORDER BY createdAt DESC,id DESC",
       ),

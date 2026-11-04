@@ -65,11 +65,11 @@ function Bars({ data, unit }: { data: Bar[]; unit: string }) {
   );
 }
 export default function AnalyticsScreen({ navigation }: any) {
-  const { books, sessions, yearGoal } = useStore();
+  const { books, sessions, yearGoal, attempts } = useStore();
   const { colors } = useTheme();
   const [chart, setChart] = useState<"day" | "month" | "books">("day");
   const now = new Date(),
-    stats = getStats(sessions, books, now);
+    stats = getStats(sessions, books, now, attempts);
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(
       now.getFullYear(),

@@ -159,3 +159,47 @@ test("analytics derives activity from real sessions and guards empty denominator
     0,
   );
 });
+
+test("annual and monthly completions survive rereading and count each completed attempt", () => {
+  const now = new Date(2026, 6, 15, 12);
+  const end = new Date(2026, 2, 10, 12).toISOString();
+  const book = {
+    ...EMPTY_BOOK,
+    id: 1,
+    createdAt: end,
+    title: "Reread",
+    status: "reading" as const,
+  };
+  const attempts = [
+    {
+      id: 1,
+      bookId: 1,
+      startedAt: end,
+      endedAt: end,
+      status: "finished" as const,
+    },
+    {
+      id: 2,
+      bookId: 1,
+      startedAt: end,
+      endedAt: null,
+      status: "reading" as const,
+    },
+  ];
+  const stats = computeAnalytics([book], [], 10, now, attempts);
+  assert.equal(stats.completedThisYear, 1);
+  assert.equal(stats.monthly[2].books, 1);
+  assert.equal(stats.goalPercent, 10);
+  const twice = computeAnalytics([book], [], 10, now, [
+    attempts[0],
+    { ...attempts[0], id: 2, endedAt: new Date(2026, 6, 10, 12).toISOString() },
+  ]);
+  assert.equal(twice.completedThisYear, 2);
+  assert.equal(twice.monthly[6].books, 1);
+  const finished = { ...book, status: "finished" as const, finishedAt: end };
+  assert.equal(computeAnalytics([finished], [], 10, now).completedThisYear, 1);
+  assert.equal(
+    computeAnalytics([finished], [], 10, now, [attempts[0]]).completedThisYear,
+    1,
+  );
+});

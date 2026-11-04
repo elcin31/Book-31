@@ -1,4 +1,9 @@
-import type { ActiveTimer, Book, ReadingSession } from "./types";
+import type {
+  ActiveTimer,
+  Book,
+  ReadingSession,
+  ReadingAttempt,
+} from "./types";
 
 /** Calendar keys deliberately use the device's local timezone, never UTC slicing. */
 export function dayKey(value: Date | string | number = new Date()): string {
@@ -61,6 +66,7 @@ export function computeAnalytics(
   sessions: ReadingSession[],
   goal = 12,
   now = new Date(),
+  attempts?: ReadingAttempt[],
 ) {
   const year = now.getFullYear(),
     month = now.getMonth();
@@ -72,11 +78,30 @@ export function computeAnalytics(
   const monthSessions = yearSessions.filter(
     (s) => new Date(s.startedAt).getMonth() === month,
   );
-  const completedThisYear = books.filter(
-    (b) =>
-      b.status === "finished" &&
-      b.finishedAt &&
-      new Date(b.finishedAt).getFullYear() === year,
+  // Attempt history survives moving a book between shelves and rereading it.
+  // Legacy callers and books without attempt records retain their book dates.
+  const completions = attempts
+    ? [
+        ...attempts
+          .filter((a) => a.status === "finished" && a.endedAt)
+          .map((a) => ({ bookId: a.bookId, endedAt: a.endedAt! })),
+        ...books
+          .filter(
+            (b) =>
+              b.status === "finished" &&
+              b.finishedAt &&
+              !attempts.some(
+                (a) =>
+                  a.bookId === b.id && a.status === "finished" && a.endedAt,
+              ),
+          )
+          .map((b) => ({ bookId: b.id, endedAt: b.finishedAt! })),
+      ]
+    : books
+        .filter((b) => b.status === "finished" && b.finishedAt)
+        .map((b) => ({ bookId: b.id, endedAt: b.finishedAt! }));
+  const completedThisYear = completions.filter(
+    (a) => new Date(a.endedAt).getFullYear() === year,
   ).length;
   const timedSessions = sessions.filter((s) => s.durationSeconds > 0);
   const seconds = timedSessions.reduce((n, s) => n + s.durationSeconds, 0);
@@ -94,11 +119,9 @@ export function computeAnalytics(
       item.seconds += s.durationSeconds;
     }
   });
-  books.forEach((b) => {
-    if (b.status === "finished" && b.finishedAt) {
-      const d = new Date(b.finishedAt);
-      if (d.getFullYear() === year) monthly[d.getMonth()].books++;
-    }
+  completions.forEach((completion) => {
+    const d = new Date(completion.endedAt);
+    if (d.getFullYear() === year) monthly[d.getMonth()].books++;
   });
   const daily = Array.from(
     { length: new Date(year, month + 1, 0).getDate() },

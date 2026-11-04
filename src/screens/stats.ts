@@ -1,4 +1,4 @@
-import { Book, ReadingSession } from "../types";
+import { Book, ReadingSession, ReadingAttempt } from "../types";
 import {
   computeAnalytics,
   dayKey,
@@ -26,8 +26,9 @@ export function getStats(
   sessions: ReadingSession[],
   books: Book[],
   now = new Date(),
+  attempts?: ReadingAttempt[],
 ) {
-  const stats = computeAnalytics(books, sessions, 12, now);
+  const stats = computeAnalytics(books, sessions, 12, now, attempts);
   return {
     byDay: stats.byDay,
     monthly: stats.monthly,

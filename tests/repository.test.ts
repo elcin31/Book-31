@@ -233,3 +233,27 @@ test("status and progress edited together attach the session to the reopened att
   check.close();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("completed attempt history survives shelf changes and rereading", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "folio-history-"));
+  const repo = openRepository(path.join(dir, "folio.db"));
+  const id = repo.saveBook({
+    ...EMPTY_BOOK,
+    title: "History",
+    totalPages: 100,
+  });
+  repo.updateProgress(id, 100);
+  const completed = repo.read().attempts![0];
+  for (const status of ["paused", "want"] as const) {
+    repo.saveBook({ ...repo.read().books[0], status }, id);
+    const preserved = repo.read().attempts![0];
+    assert.equal(preserved.status, "finished");
+    assert.equal(preserved.endedAt, completed.endedAt);
+  }
+  repo.updateProgress(id, 0);
+  assert.equal(repo.read().attempts!.length, 2);
+  const oldAttempt = repo.read().attempts!.find((a) => a.id === completed.id)!;
+  assert.equal(oldAttempt.status, "finished");
+  assert.equal(oldAttempt.endedAt, completed.endedAt);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

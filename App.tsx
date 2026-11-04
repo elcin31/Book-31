@@ -170,7 +170,7 @@ function Application() {
                   alignItems: "center",
                   justifyContent: "center",
                 }}
-                onPress={() => void store.refresh()}
+                onPress={() => void store.refresh().catch(() => {})}
               >
                 <Text style={{ color: colors.accent }}>Повторить</Text>
               </Pressable>

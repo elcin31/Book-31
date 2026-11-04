@@ -29,6 +29,13 @@ export interface Book {
   createdAt: string;
 }
 export type BookInput = Omit<Book, "id" | "createdAt">;
+export interface ReadingAttempt {
+  id: number;
+  bookId: number;
+  startedAt: string;
+  endedAt: string | null;
+  status: BookStatus;
+}
 export interface ReadingSession {
   id: number;
   bookId: number;
@@ -65,6 +72,7 @@ export interface Settings {
   timerTargetMinutes: number;
 }
 export interface Snapshot {
+  attempts?: ReadingAttempt[];
   books: Book[];
   sessions: ReadingSession[];
   notes: Note[];

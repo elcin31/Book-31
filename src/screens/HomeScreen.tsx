@@ -17,10 +17,11 @@ import {
 import { getStats, localDay, minutes, shortDate } from "./stats";
 
 export default function HomeScreen({ navigation }: any) {
-  const { books, sessions, notes, yearGoal, timer, startTimer } = useStore();
+  const { books, sessions, notes, yearGoal, timer, startTimer, attempts } =
+    useStore();
   const { colors } = useTheme();
   const now = new Date();
-  const stats = getStats(sessions, books, now);
+  const stats = getStats(sessions, books, now, attempts);
   const reading = useMemo(
     () =>
       books

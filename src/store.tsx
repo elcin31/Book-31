@@ -12,6 +12,7 @@ import type { BookInput, NoteInput, Settings, Snapshot } from "./types";
 import { DEFAULT_SETTINGS } from "./validation";
 
 const INITIAL: Snapshot = {
+  attempts: [],
   books: [],
   sessions: [],
   notes: [],
