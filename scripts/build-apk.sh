@@ -39,6 +39,6 @@ if [[ -n "${HTTPS_PROXY:-}" ]]; then
 fi
 (cd android && ./gradlew --no-daemon --max-workers=2 assembleRelease -PreactNativeArchitectures="${FOLIO_ARCHITECTURES:-arm64-v8a}")
 mkdir -p artifacts/package
-cp android/app/build/outputs/apk/release/app-release.apk artifacts/package/FOLIO-0.1.apk
-"$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose artifacts/package/FOLIO-0.1.apk
+cp android/app/build/outputs/apk/release/app-release.apk artifacts/package/FOLIO-1.0.apk
+"$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose --print-certs artifacts/package/FOLIO-1.0.apk | tee artifacts/package/signing-certificate.txt
 python3 scripts/package-release.py

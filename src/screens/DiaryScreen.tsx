@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { FlatList, Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../store";
 import {
@@ -29,11 +29,19 @@ export default function DiaryScreen({ navigation }: any) {
     "all",
   );
   const [bookFilter, setBookFilter] = useState<number | null>(null);
+  const bookById = useMemo(
+    () => new Map(books.map((book) => [book.id, book])),
+    [books],
+  );
+  const noteBookIds = useMemo(
+    () => new Set(notes.map((note) => note.bookId)),
+    [notes],
+  );
   const visible = useMemo(
     () =>
       notes
         .filter((note) => {
-          const book = books.find((b) => b.id === note.bookId);
+          const book = bookById.get(note.bookId);
           return (
             (filter === "all" ||
               (filter === "favorite" ? note.favorite : note.type === filter)) &&
@@ -44,7 +52,7 @@ export default function DiaryScreen({ navigation }: any) {
           );
         })
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [notes, books, query, filter, bookFilter],
+    [notes, bookById, query, filter, bookFilter],
   );
   const toggleFavorite = async (note: Note) => {
     try {
@@ -63,99 +71,137 @@ export default function DiaryScreen({ navigation }: any) {
     }
   };
   return (
-    <Screen>
-      <Heading
-        title="Дневник"
-        subtitle="То, что хочется сохранить"
-        action={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Добавить запись"
-            onPress={() => navigation.navigate("NoteForm")}
-            style={{ padding: 12 }}
-          >
-            <Ionicons name="add" size={26} color={colors.accent} />
-          </Pressable>
+    <Screen scroll={false}>
+      <FlatList
+        data={visible}
+        keyExtractor={(note) => String(note.id)}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 28 }}
+        ListHeaderComponent={
+          <View style={{ gap: 12, paddingBottom: 20 }}>
+            <Heading
+              title="Дневник"
+              subtitle="То, что хочется сохранить"
+              action={
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Добавить запись"
+                  onPress={() => navigation.navigate("NoteForm")}
+                  style={{ padding: 12 }}
+                >
+                  <Ionicons name="add" size={26} color={colors.accent} />
+                </Pressable>
+              }
+            />
+            <Field
+              label="Поиск в дневнике"
+              placeholder="Фраза, название книги или автор"
+              value={query}
+              onChangeText={setQuery}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginVertical: 12 }}
+              contentContainerStyle={{ gap: 8 }}
+            >
+              {(
+                [
+                  ["all", "Все записи"],
+                  ["favorite", "Избранное"],
+                  ["quote", "Цитаты"],
+                  ["thought", "Мысли"],
+                  ["summary", "Конспекты"],
+                ] as const
+              ).map(([key, label]) => (
+                <Chip
+                  key={key}
+                  label={label}
+                  selected={filter === key}
+                  onPress={() => setFilter(key)}
+                />
+              ))}
+            </ScrollView>
+            {notes.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8, paddingBottom: 16 }}
+              >
+                <Chip
+                  label="Все книги"
+                  selected={bookFilter === null}
+                  onPress={() => setBookFilter(null)}
+                />
+                {books
+                  .filter((b) => noteBookIds.has(b.id))
+                  .map((book) => (
+                    <Chip
+                      key={book.id}
+                      label={book.title}
+                      selected={bookFilter === book.id}
+                      onPress={() => setBookFilter(book.id)}
+                    />
+                  ))}
+              </ScrollView>
+            )}
+            <Text
+              accessibilityLiveRegion="polite"
+              style={{ color: colors.muted, fontSize: 12 }}
+            >
+              Записей: {visible.length}
+            </Text>
+          </View>
         }
-      />
-      <Field
-        label="Поиск в дневнике"
-        placeholder="Фраза, название книги или автор"
-        value={query}
-        onChangeText={setQuery}
-      />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginVertical: 12 }}
-        contentContainerStyle={{ gap: 8 }}
-      >
-        {(
-          [
-            ["all", "Все записи"],
-            ["favorite", "Избранное"],
-            ["quote", "Цитаты"],
-            ["thought", "Мысли"],
-            ["summary", "Конспекты"],
-          ] as const
-        ).map(([key, label]) => (
-          <Chip
-            key={key}
-            label={label}
-            selected={filter === key}
-            onPress={() => setFilter(key)}
+        ListEmptyComponent={
+          <Empty
+            title={notes.length ? "Записи не найдены" : "Мысли обретают место"}
+            description={
+              notes.length
+                ? "Измените поиск или фильтр."
+                : "Сохраните первую цитату, наблюдение или конспект. У каждой записи будет своя книга."
+            }
+            action={
+              !notes.length ? (
+                <Button
+                  title={
+                    books.length ? "Создать запись" : "Добавить первую книгу"
+                  }
+                  onPress={() =>
+                    navigation.navigate(books.length ? "NoteForm" : "BookForm")
+                  }
+                />
+              ) : (
+                <Button
+                  title="Сбросить фильтры"
+                  variant="secondary"
+                  onPress={() => {
+                    setQuery("");
+                    setFilter("all");
+                    setBookFilter(null);
+                  }}
+                />
+              )
+            }
           />
-        ))}
-      </ScrollView>
-      {notes.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingBottom: 16 }}
-        >
-          <Chip
-            label="Все книги"
-            selected={bookFilter === null}
-            onPress={() => setBookFilter(null)}
-          />
-          {books
-            .filter((b) => notes.some((n) => n.bookId === b.id))
-            .map((book) => (
-              <Chip
-                key={book.id}
-                label={book.title}
-                selected={bookFilter === book.id}
-                onPress={() => setBookFilter(book.id)}
-              />
-            ))}
-        </ScrollView>
-      )}
-      {!visible.length ? (
-        <Empty
-          title={notes.length ? "Записи не найдены" : "Мысли обретают место"}
-          description={
-            notes.length
-              ? "Измените поиск или фильтр."
-              : "Сохраните первую цитату, наблюдение или конспект. У каждой записи будет своя книга."
-          }
-          action={
-            !notes.length ? (
-              <Button
-                title={
-                  books.length ? "Создать запись" : "Добавить первую книгу"
-                }
-                onPress={() =>
-                  navigation.navigate(books.length ? "NoteForm" : "BookForm")
-                }
-              />
-            ) : undefined
-          }
-        />
-      ) : (
-        visible.map((note) => {
-          const book = books.find((b) => b.id === note.bookId);
+        }
+        renderItem={({ item: note }) => {
+          const book = bookById.get(note.bookId);
           return (
-            <Card key={note.id} style={{ marginBottom: 14, padding: 18 }}>
+            <View
+              style={{
+                marginBottom: 24,
+                paddingLeft: 16,
+                borderLeftWidth: note.type === "quote" ? 3 : 1,
+                borderLeftColor:
+                  note.type === "quote" ? colors.gold : colors.border,
+              }}
+            >
               <View
                 style={{
                   flexDirection: "row",
@@ -180,7 +226,13 @@ export default function DiaryScreen({ navigation }: any) {
                   }
                   onPress={() => toggleFavorite(note)}
                   hitSlop={10}
-                  style={{ padding: 8 }}
+                  accessibilityState={{ selected: note.favorite }}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   <Ionicons
                     name={note.favorite ? "bookmark" : "bookmark-outline"}
@@ -209,6 +261,7 @@ export default function DiaryScreen({ navigation }: any) {
               <Pressable
                 accessibilityRole="button"
                 onPress={() => navigation.navigate("Book", { id: note.bookId })}
+                style={{ minHeight: 48, justifyContent: "center" }}
               >
                 <Text
                   style={{
@@ -253,7 +306,12 @@ export default function DiaryScreen({ navigation }: any) {
                     )
                   }
                   hitSlop={10}
-                  style={{ padding: 6 }}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   <Ionicons
                     name="trash-outline"
@@ -262,10 +320,10 @@ export default function DiaryScreen({ navigation }: any) {
                   />
                 </Pressable>
               </View>
-            </Card>
+            </View>
           );
-        })
-      )}
+        }}
+      />
     </Screen>
   );
 }

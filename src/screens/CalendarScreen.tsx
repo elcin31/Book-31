@@ -96,8 +96,8 @@ export default function CalendarScreen({ navigation }: any) {
     .toLocaleDateString("ru-RU", { month: "long", year: "numeric" })
     .replace(" г.", "");
   const arrowStyle = {
-    minWidth: 46,
-    minHeight: 46,
+    minWidth: 48,
+    minHeight: 48,
     alignItems: "center" as const,
     justifyContent: "center" as const,
     borderRadius: 12,
@@ -119,6 +119,15 @@ export default function CalendarScreen({ navigation }: any) {
           onPress={() => setMode("heatmap")}
         />
       </View>
+      <Button
+        title="К сегодняшнему дню"
+        variant="secondary"
+        onPress={() => {
+          const now = new Date();
+          setMonth(new Date(now.getFullYear(), now.getMonth(), 1, 12));
+          setSelected(dateKey(now));
+        }}
+      />
       <Card>
         <View
           style={{

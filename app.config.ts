@@ -1,10 +1,10 @@
 import { ExpoConfig } from 'expo/config';
 const config: ExpoConfig = {
-  name: 'FOLIO', slug: 'folio', version: '0.1.0', orientation: 'portrait',
+  name: 'FOLIO', slug: 'folio', version: '1.0.0', orientation: 'portrait',
   userInterfaceStyle: 'automatic', icon: './assets/icon.png',
   newArchEnabled: true,
   android: {
-    package: 'app.folio.reading', versionCode: 1,
+    package: 'app.folio.reading', versionCode: 2,
     adaptiveIcon: { foregroundImage: './assets/adaptive-foreground.png', backgroundImage: './assets/adaptive-background.png', monochromeImage: './assets/adaptive-monochrome.png', backgroundColor: '#182D2C' },
     permissions: [], blockedPermissions: ['android.permission.RECORD_AUDIO', 'android.permission.SYSTEM_ALERT_WINDOW'],
     edgeToEdgeEnabled: true, predictiveBackGestureEnabled: true,

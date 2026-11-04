@@ -1,6 +1,8 @@
 import React, { createContext, useContext } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  useWindowDimensions,
   Image,
   Platform,
   Pressable,
@@ -19,13 +21,13 @@ export const lightColors = {
   bg: "#F5F2EA",
   surface: "#FFFDF8",
   text: "#202F2B",
-  muted: "#71766D",
+  muted: "#62685F",
   border: "#DDDCD2",
   accent: "#294E42",
   onAccent: "#FFFDF6",
   soft: "#E6EADF",
   danger: "#AA413E",
-  gold: "#B18B47",
+  gold: "#89672F",
 };
 export const darkColors = {
   bg: "#141D1A",
@@ -49,19 +51,44 @@ export function Screen({
   scroll?: boolean;
 }) {
   const { colors } = useTheme();
-  return scroll ? (
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const horizontal = Math.max(22, (width - 720) / 2);
+  const body = scroll ? (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: 22, paddingBottom: 36, gap: 22 }}
+      contentContainerStyle={{
+        paddingHorizontal: horizontal,
+        paddingTop: 24,
+        paddingBottom: 36 + insets.bottom,
+        gap: 28,
+      }}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
     >
       {children}
     </ScrollView>
   ) : (
-    <View style={{ flex: 1, backgroundColor: colors.bg, padding: 22, gap: 18 }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bg,
+        paddingHorizontal: horizontal,
+        paddingTop: 24,
+        paddingBottom: insets.bottom,
+        gap: 18,
+      }}
+    >
       {children}
     </View>
+  );
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      {body}
+    </KeyboardAvoidingView>
   );
 }
 export function Heading({
@@ -82,7 +109,8 @@ export function Heading({
             style={{
               color: colors.muted,
               fontSize: 12,
-              letterSpacing: 1.5,
+              lineHeight: 18,
+              letterSpacing: 1.2,
               textTransform: "uppercase",
             }}
           >
@@ -160,7 +188,7 @@ export function Button({
         minHeight: 48,
         paddingHorizontal: 18,
         paddingVertical: 13,
-        borderRadius: 12,
+        borderRadius: 8,
         backgroundColor:
           variant === "danger"
             ? colors.danger
@@ -181,7 +209,13 @@ export function Button({
           fontWeight: "600",
           textAlign: "center",
           color:
-            primary || variant === "danger" ? colors.onAccent : colors.text,
+            variant === "danger"
+              ? colors.danger === darkColors.danger
+                ? "#251310"
+                : "#FFFFFF"
+              : primary
+                ? colors.onAccent
+                : colors.text,
         }}
       >
         {title}
@@ -234,7 +268,7 @@ export function Card({
           backgroundColor: colors.surface,
           borderWidth: 1,
           borderColor: colors.border,
-          borderRadius: 14,
+          borderRadius: 10,
           padding: 18,
           gap: 12,
         },
@@ -325,7 +359,7 @@ export function Cover({
     />
   ) : (
     <View
-      accessibilityLabel="Книга без обложки"
+      accessibilityLabel={`Книга: ${book.title || "FOLIO"}, обложка не добавлена`}
       style={{
         width,
         height: h,
@@ -400,9 +434,13 @@ export function Chip({
       accessibilityState={{ selected }}
       onPress={onPress}
       style={({ pressed }) => ({
+        minHeight: 48,
+        minWidth: 48,
+        alignItems: "center",
+        justifyContent: "center",
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 20,
+        borderRadius: 8,
         borderWidth: 1,
         borderColor: selected ? colors.accent : colors.border,
         backgroundColor: selected ? colors.accent : colors.surface,
@@ -411,7 +449,7 @@ export function Chip({
     >
       <Text
         style={{
-          fontSize: 12,
+          fontSize: 13,
           color: selected ? colors.onAccent : colors.muted,
           fontWeight: selected ? "600" : "400",
         }}

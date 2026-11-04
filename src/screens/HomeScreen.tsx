@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Text, View, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../store";
@@ -21,7 +21,21 @@ export default function HomeScreen({ navigation }: any) {
   const { colors } = useTheme();
   const now = new Date();
   const stats = getStats(sessions, books, now);
-  const reading = books.filter((b) => b.status === "reading");
+  const reading = useMemo(
+    () =>
+      books
+        .filter((b) => b.status === "reading")
+        .sort((a, b) => {
+          if (timer?.bookId === a.id) return -1;
+          if (timer?.bookId === b.id) return 1;
+          return b.createdAt.localeCompare(a.createdAt);
+        }),
+    [books, timer?.bookId],
+  );
+  const activeDays = useMemo(
+    () => new Set(sessions.map((s) => localDay(s.startedAt))),
+    [sessions],
+  );
   const hour = now.getHours(),
     greeting =
       hour < 6
@@ -65,8 +79,8 @@ export default function HomeScreen({ navigation }: any) {
             accessibilityLabel="Быстро запустить таймер чтения"
             onPress={() => navigation.navigate("Timer")}
             style={{
-              width: 46,
-              height: 46,
+              width: 48,
+              height: 48,
               borderRadius: 12,
               backgroundColor: colors.soft,
               alignItems: "center",
@@ -103,6 +117,7 @@ export default function HomeScreen({ navigation }: any) {
         action={
           <Pressable
             accessibilityRole="button"
+            style={{ minHeight: 48, justifyContent: "center" }}
             onPress={() => navigation.navigate("Library")}
           >
             <Text style={{ color: colors.accent, fontWeight: "600" }}>
@@ -140,14 +155,45 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           </Card>
         ) : (
-          reading.slice(0, 4).map((book) => (
-            <Card key={book.id}>
+          reading.slice(0, 4).map((book, index) => (
+            <Card
+              key={book.id}
+              style={
+                index === 0
+                  ? { backgroundColor: colors.soft, padding: 20 }
+                  : {
+                      backgroundColor: "transparent",
+                      borderWidth: 0,
+                      paddingHorizontal: 0,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                      borderRadius: 0,
+                    }
+              }
+            >
+              {index === 0 && (
+                <Text
+                  style={{
+                    color: colors.accent,
+                    fontSize: 11,
+                    fontWeight: "700",
+                    letterSpacing: 2,
+                    marginBottom: 16,
+                  }}
+                >
+                  ПРОДОЛЖИТЬ ИСТОРИЮ
+                </Text>
+              )}
               <Pressable
                 accessibilityRole="button"
                 onPress={() => navigation.navigate("Book", { id: book.id })}
                 style={styles.reading}
               >
-                <Cover book={book} width={82} height={120} />
+                <Cover
+                  book={book}
+                  width={index === 0 ? 100 : 62}
+                  height={index === 0 ? 148 : 92}
+                />
                 <View style={{ flex: 1, gap: 6 }}>
                   <Text
                     numberOfLines={2}
@@ -184,7 +230,14 @@ export default function HomeScreen({ navigation }: any) {
               </Pressable>
               <View style={{ marginTop: 16 }}>
                 <Button
-                  title="Продолжить чтение"
+                  title={
+                    timer
+                      ? timer.bookId === book.id
+                        ? "К текущей сессии"
+                        : "Вернуться к активному таймеру"
+                      : "Начать сессию"
+                  }
+                  variant={index === 0 ? "primary" : "secondary"}
                   onPress={() => launch(book.id)}
                 />
               </View>
@@ -192,7 +245,20 @@ export default function HomeScreen({ navigation }: any) {
           ))
         )}
       </Section>
-      <Section title="Сегодня, страница за страницей">
+      <Section
+        title="Сегодня"
+        action={
+          <Pressable
+            accessibilityRole="button"
+            style={{ minHeight: 48, justifyContent: "center" }}
+            onPress={() => navigation.navigate("Analytics")}
+          >
+            <Text style={{ color: colors.accent, fontWeight: "600" }}>
+              Аналитика →
+            </Text>
+          </Pressable>
+        }
+      >
         <View style={styles.daily}>
           <View style={[styles.dailyCell, { borderColor: colors.border }]}>
             <Text style={[styles.stat, { color: colors.text }]}>
@@ -225,6 +291,7 @@ export default function HomeScreen({ navigation }: any) {
         action={
           <Pressable
             accessibilityRole="button"
+            style={{ minHeight: 48, justifyContent: "center" }}
             onPress={() => navigation.navigate("Calendar")}
           >
             <Text style={{ color: colors.accent, fontWeight: "600" }}>
@@ -235,9 +302,7 @@ export default function HomeScreen({ navigation }: any) {
       >
         <View style={styles.week}>
           {week.map((d) => {
-            const active = sessions.some(
-              (s) => localDay(s.startedAt) === localDay(d),
-            );
+            const active = activeDays.has(localDay(d));
             const today = localDay(d) === localDay(now);
             return (
               <Pressable
@@ -327,6 +392,7 @@ export default function HomeScreen({ navigation }: any) {
         action={
           <Pressable
             accessibilityRole="button"
+            style={{ minHeight: 48, justifyContent: "center" }}
             onPress={() => navigation.navigate("Diary")}
           >
             <Text style={{ color: colors.accent, fontWeight: "600" }}>

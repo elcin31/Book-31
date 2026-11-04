@@ -25,7 +25,15 @@ import {
 export default function LibraryScreen({ navigation }: any) {
   const { books, settings, setSettings } = useStore();
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
+  const [genre, setGenre] = useState<string | null>(null);
+  const genres = useMemo(
+    () =>
+      [...new Set(books.map((b) => b.genre.trim()).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b, "ru"),
+      ),
+    [books],
+  );
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<BookStatus | "all">("all");
   const [sort, setSort] = useState("created");
@@ -35,9 +43,10 @@ export default function LibraryScreen({ navigation }: any) {
         .filter(
           (b) =>
             (status === "all" || b.status === status) &&
+            (genre === null || b.genre.trim() === genre) &&
             `${b.title} ${b.author} ${b.isbn}`
               .toLocaleLowerCase()
-              .includes(query.toLocaleLowerCase()),
+              .includes(query.trim().toLocaleLowerCase()),
         )
         .sort((a, b) =>
           sort === "title"
@@ -46,10 +55,14 @@ export default function LibraryScreen({ navigation }: any) {
               ? a.author.localeCompare(b.author, "ru")
               : b.createdAt.localeCompare(a.createdAt),
         ),
-    [books, status, sort, query],
+    [books, status, sort, query, genre],
   );
   const grid = settings.libraryView === "grid";
-  const coverWidth = Math.max(72, (width - 68) / 3);
+  const columns = Math.max(
+    2,
+    Math.min(5, Math.floor((width - 44 + 12) / (fontScale > 1.25 ? 145 : 105))),
+  );
+  const coverWidth = (width - 44 - (columns - 1) * 12) / columns;
   const render = ({ item: b }: { item: Book }) => (
     <Pressable
       accessibilityRole="button"
@@ -102,11 +115,15 @@ export default function LibraryScreen({ navigation }: any) {
   return (
     <Screen scroll={false}>
       <FlatList
-        key={grid ? "grid" : "list"}
+        key={grid ? `grid-${columns}` : "list"}
         data={filtered}
         renderItem={render}
         keyExtractor={(b) => String(b.id)}
-        numColumns={grid ? 3 : 1}
+        numColumns={grid ? columns : 1}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={7}
+        keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         columnWrapperStyle={grid ? { gap: 12 } : undefined}
         showsVerticalScrollIndicator={false}
@@ -175,6 +192,27 @@ export default function LibraryScreen({ navigation }: any) {
                 />
               ))}
             </ScrollView>
+            {genres.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 8 }}
+              >
+                <Chip
+                  label="Все жанры"
+                  selected={genre === null}
+                  onPress={() => setGenre(null)}
+                />
+                {genres.map((value) => (
+                  <Chip
+                    key={value}
+                    label={value}
+                    selected={genre === value}
+                    onPress={() => setGenre(value)}
+                  />
+                ))}
+              </ScrollView>
+            )}
             <View
               style={{
                 flexDirection: "row",
@@ -199,6 +237,12 @@ export default function LibraryScreen({ navigation }: any) {
                 />
               ))}
             </View>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={{ color: colors.muted, fontSize: 12 }}
+            >
+              На полке: {filtered.length}
+            </Text>
           </View>
         }
         ListEmptyComponent={
@@ -219,7 +263,17 @@ export default function LibraryScreen({ navigation }: any) {
                   title="Добавить первую книгу"
                   onPress={() => navigation.navigate("BookForm")}
                 />
-              ) : undefined
+              ) : (
+                <Button
+                  title="Сбросить фильтры"
+                  variant="secondary"
+                  onPress={() => {
+                    setQuery("");
+                    setStatus("all");
+                    setGenre(null);
+                  }}
+                />
+              )
             }
           />
         }

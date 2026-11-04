@@ -1,4 +1,10 @@
-import { BookInput, BookStatus, NoteInput, Settings } from "./types";
+import {
+  ActiveTimer,
+  BookInput,
+  BookStatus,
+  NoteInput,
+  Settings,
+} from "./types";
 export const STATUS_VALUES: BookStatus[] = [
   "want",
   "reading",
@@ -84,4 +90,25 @@ export function validateSettings(patch: Partial<Settings>): Partial<Settings> {
   )
     throw new Error("Некорректная настройка экрана.");
   return patch;
+}
+
+/** Only expose valid persisted timers to the UI and SQLite bindings. */
+export function isActiveTimer(value: unknown): value is ActiveTimer {
+  if (!value || typeof value !== "object") return false;
+  const timer = value as Partial<ActiveTimer>;
+  return (
+    Number.isSafeInteger(timer.bookId) &&
+    (timer.bookId ?? 0) > 0 &&
+    Number.isSafeInteger(timer.startPage) &&
+    (timer.startPage ?? -1) >= 0 &&
+    typeof timer.startedAt === "string" &&
+    Number.isFinite(Date.parse(timer.startedAt)) &&
+    typeof timer.elapsedMs === "number" &&
+    Number.isFinite(timer.elapsedMs) &&
+    timer.elapsedMs >= 0 &&
+    (timer.runningSince === null ||
+      (typeof timer.runningSince === "number" &&
+        Number.isFinite(timer.runningSince) &&
+        timer.runningSince >= 0))
+  );
 }

@@ -1,47 +1,53 @@
 #!/usr/bin/env python3
+"""Package a verified standalone release; never include private signing material."""
 from pathlib import Path
-import zipfile
+import hashlib
 import os
-root=Path(__file__).resolve().parent.parent
-folder=root/'artifacts'/'package'
-apk=folder/'FOLIO-0.1.apk'
+import zipfile
+
+root = Path(__file__).resolve().parent.parent
+folder = root / 'artifacts' / 'package'
+apk = folder / 'FOLIO-1.0.apk'
 assert apk.is_file() and apk.stat().st_size > 1_000_000, 'Built APK missing or too small'
-readme='''FOLIO — локальный книжный дневник
-Версия: 0.1.0
-Тип сборки: standalone release APK, подписан локальным ключом FOLIO.
+certificate = folder / 'signing-certificate.txt'
+assert certificate.is_file(), 'Signing verification evidence missing'
+architectures = os.environ.get('FOLIO_ARCHITECTURES', 'arm64-v8a')
+readme = f'''FOLIO — локальный книжный дневник
+Версия: 1.0.0 (versionCode 2)
+Package ID: app.folio.reading
+Тип сборки: standalone release APK. Expo Go и Metro не нужны.
 Минимальная версия Android: Android 7.0 (API 24).
-Архитектура: arm64-v8a (включая Xiaomi Redmi Note 12).
+Архитектуры: {architectures}
+SHA-256 APK: {hashlib.sha256(apk.read_bytes()).hexdigest()}
 
 УСТАНОВКА
-1. Распакуйте ZIP на телефоне.
-2. Откройте FOLIO-0.1.apk и разрешите установку из этого источника.
-3. Запустите FOLIO. Регистрация не требуется.
-Для обновления используйте APK, подписанный тем же ключом. Создатель сборки
-должен сохранить приватную папку .keys. Ключ и пароли не публикуются в Git.
-CI без настроенных signing secrets создаёт новый ключ на каждый запуск;
-такие APK не обновляют друг друга поверх установленной версии.
+Распакуйте ZIP, откройте FOLIO-1.0.apk и разрешите установку из этого источника.
+Приложение работает локально, без регистрации. Поиск во внешних каталогах
+и загрузка удалённых обложек требуют сети; ручное ведение библиотеки — нет.
 
-ВОЗМОЖНОСТИ
-Локальная SQLite-библиотека, ручное добавление и редактирование книг,
-необязательный поиск в каталогах, свои обложки, статусы и прогресс,
-таймер с паузой и восстановлением, ручные сессии, заметки и цитаты,
-календарь активности, статистика и годовая цель, светлая/тёмная/автотема.
-Все основные функции работают без интернета. Библиотека при первом запуске пустая.
+СОХРАННОСТЬ ДАННЫХ И ПОДПИСЬ
+Обновление поверх старой версии возможно только при совпадении подписи.
+Сертификат этой сборки включён в signing-certificate.txt.
+Прежний приватный release keystore не находится в репозитории. CI использует
+FOLIO_KEYSTORE_BASE64 и соответствующие signing secrets, если они настроены.
+Иначе создаётся новый ключ; совместимость с подписью 0.1 не гарантируется.
+Если Android отклоняет обновление из-за подписи, НЕ удаляйте установленную
+версию и НЕ очищайте её данные: это удалит локальную SQLite-библиотеку.
+Для обновления необходимо повторить сборку с оригинальным ключом.
+Приватный ключ и пароли никогда не включаются в ZIP или Git.
 
-ОГРАНИЧЕНИЯ ВЕРСИИ 0.1
-Нет встроенной EPUB-читалки, облачной синхронизации и экспорта/импорта базы.
-Данные хранятся на устройстве; удаление приложения или очистка данных их удаляет.
-Поиск книг и загрузка обложек зависят от внешних каталогов и сети.
-Таймер учитывает время сворачивания, но не показывает системное уведомление.
-Сессия, проходящая через полночь, относится к дате её начала.
-Запуск на Android-устройстве не проверен: в среде нет телефона или эмулятора.
-Этот APK предназначен для 64-битных Android-смартфонов.
+ПРОВЕРКИ
+Перед сборкой CI выполняет TypeScript и автоматические тесты. Публикация
+выполняется после установки APK на Android-эмулятор, запуска, проверки
+вкладок, добавления книги офлайн и сохранения после перезапуска.
+Подробные доказательства доступны в артефакте FOLIO-Android-smoke-evidence
+соответствующего GitHub Actions run.
 '''
-if 'x86_64' in os.environ.get('FOLIO_ARCHITECTURES',''):
-    readme=readme.replace('Архитектура: arm64-v8a (включая Xiaomi Redmi Note 12).','Архитектуры: arm64-v8a (включая Xiaomi Redmi Note 12) и x86_64 (эмулятор).').replace('Этот APK предназначен для 64-битных Android-смартфонов.','Этот APK предназначен для 64-битных Android-смартфонов и x86_64 эмулятора.')
-(folder/'README.txt').write_text(readme,encoding='utf-8')
-archive=root/'artifacts'/'FOLIO-0.1-Android.zip'
-with zipfile.ZipFile(archive,'w',compression=zipfile.ZIP_DEFLATED) as z:
-    z.write(apk,apk.name)
-    z.write(folder/'README.txt','README.txt')
-print(str(archive),archive.stat().st_size,'bytes')
+(folder / 'README.txt').write_text(readme, encoding='utf-8')
+archive = root / 'artifacts' / 'FOLIO-1.0-Android.zip'
+with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as z:
+    for item in (apk, folder / 'README.txt', certificate):
+        z.write(item, item.name)
+with zipfile.ZipFile(archive) as z:
+    assert z.testzip() is None
+print(str(archive), archive.stat().st_size, 'bytes')

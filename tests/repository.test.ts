@@ -159,3 +159,77 @@ test("repository CRUD, restart durability, transactions, timers and cascade use 
   assert.equal(restored.read().settings.theme, "system");
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("rereading progress belongs to the new attempt without changing previous history", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "folio-reread-"));
+  const file = path.join(dir, "folio.db");
+  const repo = openRepository(file);
+  const id = repo.saveBook({ ...EMPTY_BOOK, title: "Reread", totalPages: 100 });
+  repo.updateProgress(id, 100);
+  const first = repo.read().sessions[0];
+  repo.updateProgress(id, 0);
+  repo.updateProgress(id, 20);
+  const latest = repo.read().sessions[0];
+  assert.notEqual(latest.attemptId, first.attemptId);
+  assert.equal(repo.read().sessions.length, 2);
+  assert.equal(repo.read().books[0].status, "reading");
+  const check = new DatabaseSync(file);
+  const attempts = check
+    .prepare("SELECT * FROM ReadingAttempts ORDER BY id")
+    .all();
+  assert.equal(attempts.length, 2);
+  assert.equal(attempts[0].status, "finished");
+  assert.ok(attempts[0].endedAt);
+  assert.equal(attempts[1].status, "reading");
+  assert.equal(attempts[1].endedAt, null);
+  check.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("malformed persisted timer cannot crash startup or block a new session", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "folio-timer-"));
+  const file = path.join(dir, "folio.db");
+  const repo = openRepository(file);
+  const id = repo.saveBook({ ...EMPTY_BOOK, title: "Safe recovery" });
+  const check = new DatabaseSync(file);
+  check
+    .prepare("INSERT INTO AppSettings(key,value) VALUES('timer',?)")
+    .run(JSON.stringify({ bookId: { broken: true } }));
+  assert.equal(repo.read().timer, null);
+  repo.startTimer(id);
+  assert.equal(repo.read().timer?.bookId, id);
+  check.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("status and progress edited together attach the session to the reopened attempt", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "folio-attempt-"));
+  const file = path.join(dir, "folio.db");
+  const repo = openRepository(file);
+  const id = repo.saveBook({
+    ...EMPTY_BOOK,
+    title: "Unknown length",
+    status: "finished",
+    currentPage: 10,
+  });
+  repo.saveBook(
+    { ...repo.read().books[0], status: "reading", currentPage: 20 },
+    id,
+  );
+  const check = new DatabaseSync(file);
+  const session = check
+    .prepare(
+      "SELECT s.startPage,s.endPage,a.status,a.endedAt FROM ReadingSessions s JOIN ReadingAttempts a ON a.id=s.attemptId",
+    )
+    .get();
+  assert.equal(session?.status, "reading");
+  assert.equal(session?.endedAt, null);
+  assert.equal(session?.startPage, 10);
+  assert.equal(session?.endPage, 20);
+  assert.equal(
+    check.prepare("SELECT count(*) AS n FROM ReadingAttempts").get()?.n,
+    2,
+  );
+  check.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});

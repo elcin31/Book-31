@@ -1,6 +1,7 @@
 import "react-native-reanimated";
 import React from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Text,
   View,
@@ -113,6 +114,21 @@ function Tabs() {
 }
 function Application() {
   const store = useStore();
+  const [reduceMotion, setReduceMotion] = React.useState(false);
+  React.useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((value) => {
+      if (alive) setReduceMotion(value);
+    });
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReduceMotion,
+    );
+    return () => {
+      alive = false;
+      subscription.remove();
+    };
+  }, []);
   const system = useColorScheme();
   const dark =
     store.settings.theme === "dark" ||
@@ -146,7 +162,16 @@ function Application() {
               <Text style={{ color: colors.danger, padding: 24 }}>
                 {store.error}
               </Text>
-              <Pressable onPress={() => store.refresh()}>
+              <Pressable
+                accessibilityRole="button"
+                style={{
+                  minHeight: 48,
+                  minWidth: 120,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onPress={() => void store.refresh()}
+              >
                 <Text style={{ color: colors.accent }}>Повторить</Text>
               </Pressable>
             </>
@@ -175,7 +200,7 @@ function Application() {
               headerTitleStyle: { fontFamily: "serif" },
               headerShadowVisible: false,
               contentStyle: { backgroundColor: colors.bg },
-              animation: "slide_from_right",
+              animation: reduceMotion ? "none" : "slide_from_right",
             }}
           >
             <Stack.Screen

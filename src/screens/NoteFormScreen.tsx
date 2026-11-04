@@ -26,9 +26,11 @@ export default function NoteFormScreen({ navigation, route }: any) {
   const [text, setText] = useState(existing?.text ?? "");
   const [favorite, setFavorite] = useState(existing?.favorite ?? false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const selectedBook = books.find((b) => b.id === bookId);
   const save = async () => {
     if (saving) return;
+    setError("");
     try {
       if (!selectedBook) throw new Error("Выберите книгу для записи.");
       if (!text.trim()) throw new Error("Добавьте текст записи.");
@@ -53,7 +55,11 @@ export default function NoteFormScreen({ navigation, route }: any) {
       );
       navigation.goBack();
     } catch (error) {
-      showError(error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Не удалось сохранить запись. Попробуйте ещё раз.",
+      );
     } finally {
       setSaving(false);
     }
@@ -170,6 +176,15 @@ export default function NoteFormScreen({ navigation, route }: any) {
               trackColor={{ true: colors.accent }}
             />
           </View>
+          {!!error && (
+            <Text
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={{ color: colors.danger, lineHeight: 22, marginBottom: 12 }}
+            >
+              {error}
+            </Text>
+          )}
           <Button
             title={saving ? "Сохраняем…" : "Сохранить запись"}
             onPress={save}

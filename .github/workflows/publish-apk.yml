@@ -4,36 +4,6 @@ on:
 permissions:
   contents: write
 jobs:
-  publish:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: folio-0.1-apk-artifact
-      - name: Verify exact locally built signed distribution
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          from zipfile import ZipFile
-          import hashlib
-          archive=Path('FOLIO-0.1-Android.zip')
-          assert hashlib.sha256(archive.read_bytes()).hexdigest() == '2a8592c03a5624fd9ae3405a147da5b6f60e4860d6a325570896c62bc74ed3ac'
-          with ZipFile(archive) as z:
-              assert z.namelist()==['FOLIO-0.1.apk','README.txt']
-              assert z.testzip() is None
-              assert hashlib.sha256(z.read('FOLIO-0.1.apk')).hexdigest() == 'a00d6908f8b0dd68cb5f87403591c112005a3ba62d9fe80c7c341627745eb3ac'
-          PY
-      - name: Upload original APK ZIP and publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          gh release upload v0.1.0 FOLIO-0.1-Android.zip --clobber
-          gh release edit v0.1.0 --draft=false --latest
-      - uses: actions/upload-artifact@v4
-        with:
-          name: FOLIO-0.1-Android-verified-release
-          path: FOLIO-0.1-Android.zip
-          retention-days: 90
-          if-no-files-found: error
+  build-verify-publish:
+    uses: ./.github/workflows/android.yml
+    secrets: inherit

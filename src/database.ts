@@ -16,6 +16,7 @@ import {
   validateNote,
   validatePage,
   validateSettings,
+  isActiveTimer,
 } from "./validation";
 import { MIGRATIONS } from "./schema";
 import { timerElapsedMs } from "./analytics";
@@ -67,6 +68,10 @@ function setting<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+function getTimer(): ActiveTimer | null {
+  const value = setting<unknown>("timer", null);
+  return isActiveTimer(value) ? value : null;
 }
 function putSetting(key: string, value: unknown) {
   db().runSync(
@@ -137,7 +142,9 @@ function updateAttempt(book: Book, next: BookInput) {
     db().runSync(
       "INSERT INTO ReadingAttempts(bookId,startedAt,endedAt,status) VALUES(?,?,?,?)",
       book.id,
-      next.startedAt || new Date().toISOString(),
+      latest?.endedAt
+        ? new Date().toISOString()
+        : next.startedAt || new Date().toISOString(),
       endedAt,
       next.status,
     );
@@ -181,9 +188,9 @@ export const repository = {
     } catch {
       settings = DEFAULT_SETTINGS;
     }
-    const rawTimer = setting<ActiveTimer | null>("timer", null);
+    const rawTimer = setting<unknown>("timer", null);
     const timer =
-      rawTimer &&
+      isActiveTimer(rawTimer) &&
       database.getFirstSync("SELECT id FROM Books WHERE id=?", rawTimer.bookId)
         ? rawTimer
         : null;
@@ -215,7 +222,7 @@ export const repository = {
       const next = normalizedBook(input, existing);
       if (
         existing &&
-        setting<ActiveTimer | null>("timer", null)?.bookId === id &&
+        getTimer()?.bookId === id &&
         (next.currentPage !== existing.currentPage ||
           next.totalPages !== existing.totalPages ||
           next.status !== existing.status)
@@ -225,6 +232,7 @@ export const repository = {
         );
       const values = bookColumns.map((k) => next[k]);
       if (existing) {
+        updateAttempt(existing, next);
         if (next.currentPage !== existing.currentPage)
           addProgress(existing, next.currentPage);
         db().runSync(
@@ -232,7 +240,6 @@ export const repository = {
           ...values,
           id!,
         );
-        updateAttempt(existing, next);
       } else {
         savedId = db().runSync(
           `INSERT INTO Books(${bookColumns.join(",")},createdAt) VALUES(${bookColumns.map(() => "?").join(",")},?)`,
@@ -251,17 +258,15 @@ export const repository = {
     db().withTransactionSync(() => {
       getBook(id);
       db().runSync("DELETE FROM Books WHERE id=?", id);
-      if (setting<ActiveTimer | null>("timer", null)?.bookId === id)
-        putSetting("timer", null);
+      if (getTimer()?.bookId === id) putSetting("timer", null);
     });
   },
   updateProgress(bookId: number, page: number) {
     const book = getBook(bookId);
     validatePage(page, book.totalPages);
-    if (setting<ActiveTimer | null>("timer", null)?.bookId === bookId)
+    if (getTimer()?.bookId === bookId)
       throw new Error("Сначала сохраните или отмените текущую сессию таймера.");
     db().withTransactionSync(() => {
-      addProgress(book, page);
       const complete = book.totalPages > 0 && page === book.totalPages;
       const status = complete
         ? "finished"
@@ -277,6 +282,8 @@ export const repository = {
           ? book.finishedAt || new Date().toISOString()
           : null,
       };
+      updateAttempt(book, next);
+      addProgress(book, page);
       db().runSync(
         "UPDATE Books SET currentPage=?,status=?,startedAt=?,finishedAt=? WHERE id=?",
         next.currentPage,
@@ -285,7 +292,6 @@ export const repository = {
         next.finishedAt,
         bookId,
       );
-      updateAttempt(book, next);
     });
   },
   saveSession(input: SessionInput, finishTimer = false) {
@@ -305,7 +311,7 @@ export const repository = {
       throw new Error("Укажите корректную дату сессии, не позже текущей.");
     if (input.durationSeconds === 0 && input.startPage === input.endPage)
       throw new Error("Укажите прочитанные страницы или время чтения.");
-    const timer = setting<ActiveTimer | null>("timer", null);
+    const timer = getTimer();
     if (finishTimer && (!timer || timer.bookId !== book.id))
       throw new Error("Эта сессия таймера уже сохранена или отменена.");
     if (timer?.bookId === book.id && !finishTimer)
@@ -407,7 +413,7 @@ export const repository = {
   },
   startTimer(bookId: number) {
     const book = getBook(bookId);
-    const active = setting<ActiveTimer | null>("timer", null);
+    const active = getTimer();
     if (active) {
       if (active.bookId === bookId) return;
       throw new Error(
@@ -444,7 +450,7 @@ export const repository = {
     });
   },
   pauseTimer() {
-    const timer = setting<ActiveTimer | null>("timer", null);
+    const timer = getTimer();
     if (timer && timer.runningSince !== null)
       putSetting("timer", {
         ...timer,
@@ -453,7 +459,7 @@ export const repository = {
       });
   },
   resumeTimer() {
-    const timer = setting<ActiveTimer | null>("timer", null);
+    const timer = getTimer();
     if (timer && timer.runningSince === null)
       putSetting("timer", { ...timer, runningSince: Date.now() });
   },

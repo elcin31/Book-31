@@ -50,6 +50,7 @@ export default function BookFormScreen({ navigation, route }: any) {
   const [started, setStarted] = useState(day(form.startedAt));
   const [finished, setFinished] = useState(day(form.finishedAt));
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   function patch<K extends keyof BookInput>(key: K, value: BookInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -79,6 +80,7 @@ export default function BookFormScreen({ navigation, route }: any) {
   async function save() {
     if (busy) return;
     setBusy(true);
+    setError("");
     try {
       if (!form.title.trim()) throw new Error("Укажите название книги.");
       if (
@@ -117,7 +119,11 @@ export default function BookFormScreen({ navigation, route }: any) {
       if (id) navigation.goBack();
       else navigation.replace("Book", { id: savedId });
     } catch (e) {
-      showError(e);
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Не удалось сохранить книгу. Попробуйте ещё раз.",
+      );
     } finally {
       setBusy(false);
     }
@@ -241,7 +247,12 @@ export default function BookFormScreen({ navigation, route }: any) {
               Личная оценка
             </Text>
             <View
-              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 8,
+              }}
             >
               {[1, 2, 3, 4, 5].map((r) => (
                 <Pressable
@@ -249,7 +260,13 @@ export default function BookFormScreen({ navigation, route }: any) {
                   accessibilityRole="button"
                   accessibilityLabel={`Оценка ${r} из 5`}
                   onPress={() => patch("rating", r === form.rating ? 0 : r)}
-                  style={{ padding: 6 }}
+                  accessibilityState={{ selected: r === form.rating }}
+                  style={{
+                    minWidth: 48,
+                    minHeight: 48,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
                   <Text
                     style={{
@@ -270,6 +287,15 @@ export default function BookFormScreen({ navigation, route }: any) {
             )}
           </View>
         </Section>
+        {!!error && (
+          <Text
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            style={{ color: colors.danger, lineHeight: 22 }}
+          >
+            {error}
+          </Text>
+        )}
         {busy && <ActivityIndicator color={colors.accent} />}
         <Button
           title={busy ? "Сохраняем…" : "Сохранить книгу"}

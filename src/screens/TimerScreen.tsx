@@ -34,6 +34,8 @@ export default function TimerScreen({ navigation }: any) {
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
   useEffect(() => {
+    if (!focused || !timer || timer.runningSince === null) return;
+    setNow(Date.now());
     const interval = setInterval(() => setNow(Date.now()), 1000);
     const subscription = AppState.addEventListener("change", () =>
       setNow(Date.now()),
@@ -42,7 +44,7 @@ export default function TimerScreen({ navigation }: any) {
       clearInterval(interval);
       subscription.remove();
     };
-  }, []);
+  }, [focused, timer?.runningSince]);
   useEffect(() => {
     if (
       !focused ||
@@ -134,6 +136,7 @@ export default function TimerScreen({ navigation }: any) {
             <Text
               accessibilityRole="timer"
               accessibilityLabel={`Прошло ${elapsed} секунд`}
+              accessibilityLiveRegion="none"
               style={{
                 color: colors.text,
                 fontSize: 46,

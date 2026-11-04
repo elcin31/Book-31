@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Text, View, ScrollView, Pressable } from "react-native";
+import {
+  Text,
+  View,
+  ScrollView,
+  Pressable,
+  useWindowDimensions,
+} from "react-native";
 import { useStore } from "../store";
 import { BookInput, BookStatus, STATUS_LABELS } from "../types";
 import {
@@ -20,6 +26,8 @@ import {
 export default function BookScreen({ navigation, route }: any) {
   const store = useStore();
   const { colors } = useTheme();
+  const { width, fontScale } = useWindowDimensions();
+  const compact = width < 360 || fontScale > 1.3;
   const book = store.books.find((b) => b.id === route.params.id);
   const [page, setPage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,14 +56,19 @@ export default function BookScreen({ navigation, route }: any) {
     .filter((s) => s.bookId === b.id)
     .sort((a, c) => c.startedAt.localeCompare(a.startedAt));
   async function setStatus(status: BookStatus) {
+    if (busy || status === b.status) return;
+    setBusy(true);
     try {
       const { id, createdAt, ...input } = b;
       await store.saveBook({ ...input, status }, id);
     } catch (e) {
       showError(e);
+    } finally {
+      setBusy(false);
     }
   }
   async function progress() {
+    if (busy) return;
     if (!/^\d+$/.test(page)) {
       showError(new Error("Укажите целую неотрицательную страницу."));
       return;
@@ -71,7 +84,7 @@ export default function BookScreen({ navigation, route }: any) {
   }
   async function start() {
     try {
-      await store.startTimer(b.id);
+      if (!store.timer) await store.startTimer(b.id);
       navigation.navigate("Timer");
     } catch (e) {
       showError(e);
@@ -93,10 +106,27 @@ export default function BookScreen({ navigation, route }: any) {
           }
         />
         <View
-          style={{ flexDirection: "row", gap: 20, alignItems: "flex-start" }}
+          style={{
+            flexDirection: compact ? "column" : "row",
+            gap: 20,
+            alignItems: compact ? "center" : "flex-start",
+            paddingBottom: 24,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
         >
-          <Cover book={b} width={118} height={177} />
-          <View style={{ flex: 1, gap: 10 }}>
+          <Cover
+            book={b}
+            width={compact ? 138 : 118}
+            height={compact ? 207 : 177}
+          />
+          <View
+            style={{
+              flex: compact ? undefined : 1,
+              alignSelf: "stretch",
+              gap: 10,
+            }}
+          >
             <Text
               style={{
                 color: colors.text,
@@ -116,6 +146,9 @@ export default function BookScreen({ navigation, route }: any) {
               </Text>
             )}
             <Text
+              accessibilityLabel={
+                b.rating ? `Оценка ${b.rating} из 5` : "Оценка не указана"
+              }
               style={{ color: colors.gold, fontSize: 21, letterSpacing: 2 }}
             >
               {b.rating
@@ -172,7 +205,10 @@ export default function BookScreen({ navigation, route }: any) {
               </View>
               <Button title="Сохранить" disabled={busy} onPress={progress} />
             </View>
-            <Button title="Начать чтение" onPress={start} />
+            <Button
+              title={store.timer ? "К активному таймеру" : "Начать чтение"}
+              onPress={start}
+            />
             <Button
               title="Добавить сессию вручную"
               variant="secondary"
