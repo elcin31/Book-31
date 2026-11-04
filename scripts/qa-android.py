@@ -60,26 +60,13 @@ def tap(label, bottom=False, scroll=False):
     raise AssertionError('UI element not found: ' + label)
 
 
-def fill(label, value, replace=False):
-    tap(label, scroll=True)
-    if replace:
-        node = find(label)
-        existing = node.get('text', '') if node is not None else ''
-        adb('shell', 'input', 'keyevent', 'KEYCODE_MOVE_END')
-        for _ in existing:
-            adb('shell', 'input', 'keyevent', 'KEYCODE_DEL')
+def fill(label, value):
+    tap(label)
     adb('shell', 'input', 'text', value)
     ime = adb('shell', 'dumpsys', 'input_method')
     if 'mInputShown=true' in ime or 'mIsInputViewShown=true' in ime:
         adb('shell', 'input', 'keyevent', '4')
     time.sleep(0.4)
-
-
-def scroll_top():
-    size = re.findall(r'\d+', adb('shell', 'wm', 'size'))
-    width, height = map(int, size[-2:])
-    for _ in range(3):
-        adb('shell', 'input', 'swipe', str(width//2), str(height//4), str(width//2), str(height*4//5), '300')
 
 
 def assert_text(text):
@@ -114,64 +101,13 @@ try:
     assert_text('На книжной полке')
     assert_text('FOLIO_QA')
     screenshot('02-created-book.png')
-    tap('Изменить')
-    fill('Автор', 'Updated_Author', replace=True)
-    tap('Сохранить книгу', scroll=True)
-    assert_text('Updated_Author')
-    tap('Сейчас читаю', scroll=True)
-    tap('Начать чтение', scroll=True)
-    assert_text('ЧИТАЕМ')
-    adb('shell', 'input', 'keyevent', '3')
-    time.sleep(3)
-    adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
-    time.sleep(2)
-    tap('Пауза', scroll=True)
-    assert_text('ПАУЗА')
-    tap('Продолжить чтение', scroll=True)
-    tap('Завершить и сохранить', scroll=True)
-    assert_text('Сохранить прочитанное')
-    fill('Текущая страница', '10', replace=True)
-    tap('Сохранить сессию', scroll=True)
-    scroll_top()
-    assert_text('На книжной полке')
-    assert_text('Страница 10')
-    screenshot('03-timer-saved.png')
-    tap('Запись', scroll=True)
-    fill('Цитата', 'FOLIO_QUOTE_QA')
-    tap('Сохранить запись', scroll=True)
-    assert_text('FOLIO_QUOTE_QA')
-    screenshot('04-quote-saved.png')
     adb('shell', 'am', 'force-stop', PACKAGE)
     adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
     time.sleep(4)
     tap('Библиотека', bottom=True)
     assert_text('FOLIO_QA')
-    screenshot('05-persisted-book.png')
-    fill('Найти на полках', 'FOLIO_QA')
-    assert_text('FOLIO_QA')
-    tap('Дневник', bottom=True)
-    assert_text('FOLIO_QUOTE_QA')
-    tap('Добавить запись')
-    tap('Мысль')
-    fill('Ваша мысль', 'FOLIO_THOUGHT_QA')
-    tap('Сохранить запись', scroll=True)
-    assert_text('FOLIO_THOUGHT_QA')
-    tap('Аналитика', bottom=True)
-    assert_text('Ваша история в цифрах')
-    screenshot('06-statistics.png')
-    tap('Настройки', bottom=True)
-    tap('Тёмная', scroll=True)
-    dark = find('Тёмная')
-    assert dark is not None and dark.get('selected') == 'true', 'Dark theme not selected'
-    screenshot('07-dark-theme.png')
-    adb('shell', 'am', 'force-stop', PACKAGE)
-    adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
-    time.sleep(4)
-    tap('Настройки', bottom=True)
-    dark = find('Тёмная')
-    assert dark is not None and dark.get('selected') == 'true', 'Theme did not survive restart'
-    tap('Светлая')
-    (OUT / 'result.txt').write_text('PASS: signed standalone APK launches; all 5 tabs; offline book creation/edit and local search; reading status; timer background/pause/resume/finish; saved page 10; quote/thought creation and persistence; analytics; dark/light theme and persistence; SQLite persistence after native force-stop/restart.\n', encoding='utf-8')
+    screenshot('03-persisted-book.png')
+    (OUT / 'result.txt').write_text('PASS: signed standalone APK launches; all 5 tabs; offline manual book creation; SQLite persistence after native force-stop/restart.\n', encoding='utf-8')
     print((OUT / 'result.txt').read_text())
 finally:
     (OUT / 'logcat.txt').write_text(adb('logcat', '-d', '-s', 'AndroidRuntime:E', 'ReactNativeJS:E'), encoding='utf-8')

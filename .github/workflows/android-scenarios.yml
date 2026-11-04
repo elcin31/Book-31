@@ -40,7 +40,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none -camera-front none
           script: |
             adb install -r downloaded/apk/FOLIO-1.0.apk
-            python3 scripts/qa-android.py
+            python3 scripts/qa-android-complete.py
       - name: Upload screenshots, native logs and result
         if: always()
         uses: actions/upload-artifact@v4
