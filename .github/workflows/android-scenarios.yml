@@ -1,0 +1,51 @@
+name: Android complete scenarios
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Android APK build run ID (same repository)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  native-scenarios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Download exact standalone distribution from build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run download "$BUILD_RUN_ID" --name FOLIO-1.0-Android --dir downloaded
+          unzip downloaded/FOLIO-1.0-Android.zip -d downloaded/apk
+          sha256sum downloaded/apk/FOLIO-1.0.apk
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      - name: Exercise installed release offline
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -camera-back none -camera-front none
+          script: |
+            adb install -r downloaded/apk/FOLIO-1.0.apk
+            python3 scripts/qa-android.py
+      - name: Upload screenshots, native logs and result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FOLIO-complete-scenarios-evidence
+          path: artifacts/android-smoke/
+          if-no-files-found: warn
+          retention-days: 90
