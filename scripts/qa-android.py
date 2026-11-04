@@ -75,6 +75,13 @@ def fill(label, value, replace=False):
     time.sleep(0.4)
 
 
+def scroll_top():
+    size = re.findall(r'\d+', adb('shell', 'wm', 'size'))
+    width, height = map(int, size[-2:])
+    for _ in range(3):
+        adb('shell', 'input', 'swipe', str(width//2), str(height//4), str(width//2), str(height*4//5), '300')
+
+
 def assert_text(text):
     for _ in range(10):
         if any(text in (n.get('text', '') + n.get('content-desc', '')) for n in dump().iter('node')):
@@ -121,6 +128,7 @@ try:
     assert_text('Сохранить прочитанное')
     fill('Текущая страница', '10', replace=True)
     tap('Сохранить сессию', scroll=True)
+    scroll_top()
     assert_text('На книжной полке')
     assert_text('Страница 10')
     screenshot('03-timer-saved.png')
