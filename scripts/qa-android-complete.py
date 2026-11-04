@@ -171,6 +171,15 @@ try:
     dark = find('Тёмная')
     assert dark is not None and dark.get('selected') == 'true', 'Theme did not survive restart'
     tap('Светлая')
+    adb('shell', 'settings', 'put', 'system', 'font_scale', '1.3')
+    adb('shell', 'am', 'force-stop', PACKAGE)
+    adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/.MainActivity')
+    time.sleep(4)
+    screenshot('08-home-large-text.png')
+    tap('Библиотека', bottom=True)
+    assert_text('FOLIO_QA')
+    screenshot('09-library-large-text.png')
+    adb('shell', 'settings', 'put', 'system', 'font_scale', '1.0')
     (OUT / 'result.txt').write_text('PASS: signed standalone APK launches; all 5 tabs; offline book creation/edit and local search; reading status; timer background/pause/resume/finish; saved page 10; quote/thought creation and persistence; analytics; dark/light theme and persistence; SQLite persistence after native force-stop/restart.\n', encoding='utf-8')
     print((OUT / 'result.txt').read_text())
 finally:
