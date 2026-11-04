@@ -6,12 +6,18 @@ on:
         description: Successful Android APK build run ID (same repository)
         required: true
         type: string
+      runner:
+        description: Hosted Linux runner pool
+        required: false
+        default: ubuntu-latest
+        type: choice
+        options: [ubuntu-latest, ubuntu-22.04]
 permissions:
   contents: read
   actions: read
 jobs:
   native-scenarios:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
