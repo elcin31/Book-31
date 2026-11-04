@@ -52,6 +52,18 @@ jobs:
           path: artifacts/FOLIO-1.0-Android.zip
           if-no-files-found: error
           retention-days: 90
+      - name: Free native build intermediates before emulator download
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import os
+          import shutil
+          # The signed APK is already copied to artifacts/package and uploaded.
+          for path in [Path('android'), Path('node_modules'), Path.home()/'.gradle'/'caches', Path(os.environ['ANDROID_HOME'])/'ndk', Path(os.environ['ANDROID_HOME'])/'cmake']:
+              if path.exists():
+                  shutil.rmtree(path)
+          PYTHON
+          df -h .
       - name: Enable KVM for Android smoke test
         run: sudo chmod 666 /dev/kvm
       - name: Install and launch on Android emulator
